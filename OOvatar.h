@@ -38,6 +38,14 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 +(OOvatar *)sharedInstance;
 +(void)sharedInstanceWithAppKey:(NSString *)appKey;
 
+-(void)setEmail:(NSString *)email;
+-(void)setPhoneNumber:(NSString *)phone;
+-(void)setKey:(NSString *)key;
+
+-(NSString *)ovatarEmail;
+-(NSString *)ovatarPhoneNumber;
+-(NSString *)ovatarKey;
+
 -(void)returnOvatarIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion;
 

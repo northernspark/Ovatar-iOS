@@ -7,7 +7,6 @@
 //
 
 #import "OOvatarIcon.h"
-#import "OOvatar.h"
 
 @implementation OOvatarIcon
 
@@ -19,8 +18,8 @@
     self.ovatar.size = [self imageSize:self.bounds];
     self.ovatar.odelegate = self;
 
-    self.onlyfaces = false;
     self.animated = true;
+    self.presentpicker = true;
     self.cacheexpiry = 60 * 60;
     
     if (![self.subviews containsObject:self.container]) {
@@ -37,56 +36,62 @@
         
     }
     
-    if (self.key != nil && self.key.length > 0) {
-        if ([self imageFromCache:self.key] == nil) {
-            [self.ovatar returnOvatarIconWithKey:self.key completion:^(NSError *error, id output) {
-                if (error.code == 200) {
-                    if ([output isKindOfClass:[UIImage class]]) {
-                        [self imageSet:(UIImage *)output animated:self.animated];
-                        [self imageSaveToCache:(UIImage *)output identifyer:self.key];
+    if (self.ovatar.ovatarKey != nil && self.ovatar.ovatarKey.length > 0) {
+        if ([self imageFromCache:self.ovatar.ovatarKey] == nil) {
+            [self.ovatar returnOvatarIconWithKey:self.ovatar.ovatarKey completion:^(NSError *error, id output) {
+                [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                    if (error.code == 200) {
+                        if ([output isKindOfClass:[UIImage class]]) {
+                            [self imageSet:(UIImage *)output animated:self.animated];
+                            [self imageSaveToCache:(UIImage *)output identifyer:self.ovatar.ovatarKey];
 
+                        }
+                        
+                    }
+                    else if (error.code == 404) {
+                        [self imageSet:self.placeholder animated:self.animated];
+                        
+                    }
+                    else {
+                        [self imageSet:[self imageFromCache:self.ovatar.ovatarKey] animated:self.animated];
+                        
                     }
                     
-                }
-                else if (error.code == 404) {
-                    [self imageSet:self.placeholder animated:self.animated];
-                    
-                }
-                else {
-                    [self imageSet:[self imageFromCache:self.key] animated:self.animated];
-                    
-                }
+                }];
                 
             }];
             
         }
-        else [self imageSet:[self imageFromCache:self.key] animated:self.animated];
+        else [self imageSet:[self imageFromCache:self.ovatar.ovatarKey] animated:self.animated];
         
     }
     
-    if ((self.email != nil && self.email.length > 0) || (self.phone != nil && self.phone.length > 0)) {
+    if ((self.ovatar.ovatarEmail != nil && self.ovatar.ovatarEmail.length > 0) || (self.ovatar.ovatarPhoneNumber != nil && self.ovatar.ovatarPhoneNumber.length > 0)) {
         NSString *user;
-        if (self.email != nil) user = self.email;
-        else user = self.phone;
+        if (self.ovatar.ovatarEmail != nil) user = self.ovatar.ovatarEmail;
+        else user = self.ovatar.ovatarPhoneNumber;
         
         if ([self imageFromCache:user] == nil) {
             [self.ovatar returnOvatarIconWithQuery:user completion:^(NSError *error, id output) {
-                if (error.code == 200) {
-                    if ([output isKindOfClass:[UIImage class]]) {
-                        [self imageSet:(UIImage *)output animated:self.animated];
-                        [self imageSaveToCache:(UIImage *)output identifyer:user];
+                [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                    if (error.code == 200) {
+                        if ([output isKindOfClass:[UIImage class]]) {
+                            [self imageSet:(UIImage *)output animated:self.animated];
+                            [self imageSaveToCache:(UIImage *)output identifyer:user];
+                            
+                        }
+                        
+                    }
+                    else if (error.code == 404) {
+                        [self imageSet:self.placeholder animated:self.animated];
+                        
+                    }
+                    else {
+                        [self imageSet:[self imageFromCache:user] animated:self.animated];
                         
                     }
                     
-                }
-                else if (error.code == 404) {
-                    [self imageSet:self.placeholder animated:self.animated];
-                    
-                }
-                else {
-                    [self imageSet:[self imageFromCache:user] animated:self.animated];
-                    
-                }
+                }];
                 
             }];
             
@@ -98,25 +103,88 @@
 }
 
 -(void)imageTappedWithGesture:(UITapGestureRecognizer *)gesture {
-    if ([self.odelegate respondsToSelector:@selector(ovatarIconWasTappedWithGesture:)]) {
-        if (self.animated) {
-            CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
-            animation.duration = 0.1;
-            animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
-            animation.autoreverses = true;
-            animation.repeatCount = 1;
-            animation.toValue = [NSNumber numberWithFloat:0.95];
-            [self.container.layer addAnimation:animation forKey:nil];
+    if (self.animated) {
+        CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+        animation.duration = 0.1;
+        animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+        animation.autoreverses = true;
+        animation.repeatCount = 1;
+        animation.toValue = [NSNumber numberWithFloat:0.95];
+        [self.container.layer addAnimation:animation forKey:nil];
 
-            UINotificationFeedbackGenerator *generator = [[UINotificationFeedbackGenerator alloc] init];
-            [generator notificationOccurred:UINotificationFeedbackTypeWarning];
-            [generator prepare];
+        UINotificationFeedbackGenerator *generator = [[UINotificationFeedbackGenerator alloc] init];
+        [generator notificationOccurred:UINotificationFeedbackTypeWarning];
+        [generator prepare];
+        
+    }
+    
+    if (self.presentpicker) {
+        if (self.ovatar.ovatarEmail != nil || self.ovatar.ovatarPhoneNumber != nil) {
+            if ([PHPhotoLibrary authorizationStatus] == PHAuthorizationStatusNotDetermined) {
+                [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
+                    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                        if (status == PHAuthorizationStatusAuthorized) {
+                            [self imagePickerPresent];
+                            
+                        }
+                        
+                    }];
+                    
+                }];
+                
+            }
+            else if ([PHPhotoLibrary authorizationStatus] == PHAuthorizationStatusAuthorized) {
+                [self imagePickerPresent];
+                
+            }
+            else {
+                NSLog(@"\n\nOVATAR ERROR: Photo access has been disabled/revoked by the user");
+                
+            }
+            
+        }
+        else NSLog(@"\n\nOVATAR ERROR: You need to set a or email or phone number");
+        
+    }
+    else {
+        if ([self.odelegate respondsToSelector:@selector(ovatarIconWasTappedWithGesture:)]) {
+            [self.odelegate ovatarIconWasTappedWithGesture:gesture];
             
         }
         
-        [self.odelegate ovatarIconWasTappedWithGesture:gesture];
+    }
+    
+}
+
+-(void)imagePickerPresent {
+    UIImagePickerController* picker = [[UIImagePickerController alloc] init];
+    if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypePhotoLibrary]) {
+        [picker setAllowsEditing:self.allowsediting];
+        [picker setSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
         
     }
+    
+    if (picker.sourceType == UIImagePickerControllerSourceTypePhotoLibrary) {
+        UINavigationController *root = (UINavigationController  *)self.window.rootViewController;
+
+        [picker setDelegate:self];
+        [root presentViewController:picker animated:true completion:^{
+            
+        }];
+        
+    }
+    
+}
+
+-(void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    [picker dismissViewControllerAnimated:true completion:^{
+        UIImage *output;
+        if (self.allowsediting) output = [info objectForKey:UIImagePickerControllerEditedImage];
+        else output = [info objectForKey:UIImagePickerControllerOriginalImage];
+        
+        [self imageUpdateWithImage:UIImagePNGRepresentation(output)];
+        
+    }];
     
 }
 
@@ -136,19 +204,29 @@
 
 }
 
--(void)imageUpdateWithImage:(UIImage *)image {
+-(void)imageSetWithKey:(NSString *)key {
+    if (![self.ovatar.ovatarKey isEqualToString:key]) {
+        self.ovatar.key = key;
+        
+        [self setNeedsDisplay];
+        
+    }
+    
+}
+
+-(void)imageUpdateWithImage:(NSData *)image {
     NSString *user;
-    if (self.email != nil) user = self.email;
-    else user = self.phone;
+    if (self.ovatar.ovatarEmail != nil) user = self.ovatar.ovatarEmail;
+    else user = self.ovatar.ovatarPhoneNumber;
     
     [self.ovatar uploadOvatar:image user:user];
-    [self imageFromCache:nil];
+    [self imageSaveToCache:[UIImage imageWithData:image] identifyer:user];
     
 }
 
 -(OImageSize)imageSize:(CGRect)rect {
-    if (rect.size.width <= (120 / 2)) return OImageSizeSmall;
-    else if (rect.size.width <= (350 / 2)) return OImageSizeMedium;
+    if (rect.size.width <= (30.0)) return OImageSizeSmall;
+    else if (rect.size.width >= (120 / 2) && rect.size.width <= (350 / 2)) return OImageSizeMedium;
     else return OImageSizeLarge;
 
 }

@@ -7,25 +7,36 @@
 //
 
 #import <UIKit/UIKit.h>
+#import <Photos/Photos.h>
+
 #import "OOvatar.h"
 
 @protocol OOvatarIconDelegate;
-@interface OOvatarIcon : UIView <UIGestureRecognizerDelegate, OOvatarDelegate>
+@interface OOvatarIcon : UIView <UIGestureRecognizerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, OOvatarDelegate>
 
 @property (weak, nonatomic) id <OOvatarIconDelegate> odelegate;
-@property (nonatomic, strong) UIImage *placeholder;//set placeholder image
-@property (nonatomic) BOOL onlyfaces;//only accept images with faces
+@property (nonatomic, strong) UIImage *placeholder;
+//Ovatar icon placeholder image.
+
 @property (nonatomic) BOOL animated;
+//Ovatar animates with crossfade
+
+@property (nonatomic) BOOL presentpicker;
+//Present default image picker, if true the 'ovatarIconWasTappedWithGesture' method will not be called. Default is set to TRUE.
+
+@property (nonatomic) BOOL allowsediting;
+//Presents default image editor for framing and cropping selected image. Default is set to FALSE.
+
 @property (nonatomic) int cacheexpiry;
-@property (nonatomic, strong) NSString *email;
-@property (nonatomic, strong) NSString *phone;
-@property (nonatomic, strong) NSString *key;
+//Cache expiry default set to 1 hour. This number is in seconds.
 
 @property (nonatomic, strong) UIImageView *container;
 @property (nonatomic, strong) OOvatar *ovatar;
 
 -(void)imageSet:(UIImage *)image animated:(BOOL)animated;
--(void)imageUpdateWithImage:(UIImage *)image;
+-(void)imageSetWithKey:(NSString *)key;
+-(void)imageUpdateWithImage:(NSData *)image;
+-(void)imagePickerPresentWithViewController:(UIViewController *)superview;
 
 @end
 

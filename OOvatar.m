@@ -13,6 +13,8 @@
 static NSString *token;
 
 #define OVATAR_HOST @"https://ovatar.io/api/"
+#define OVATAR_REGEX_PHONE @"(\\+)[0-9\\+\\-]{6,19}"
+#define OVATAR_REGEX_EMAIL @"[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}"
 
 +(void)sharedInstanceWithAppKey:(NSString *)appKey {
     token = appKey;
@@ -79,7 +81,7 @@ static NSString *token;
     }
     
     [buildendpoint setString:[buildendpoint substringWithRange:NSMakeRange(0, buildendpoint.length - 1)]];
-    
+        
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:buildendpoint] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:40];
     [request addValue:token forHTTPHeaderField:@"oappkey"];
     [request setHTTPMethod:@"GET"];
@@ -113,7 +115,7 @@ static NSString *token;
         
     }];
     
-    if (self.debug) NSLog(@"\n\nLoading ✍️ GET: %@\n\n", buildendpoint);
+    if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ GET: %@\n\n", buildendpoint);
     
     [task resume];
     
@@ -143,7 +145,7 @@ static NSString *token;
     NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:queue];
     NSURLSessionUploadTask *task = [session uploadTaskWithStreamedRequest:request];
 
-    if (self.debug) NSLog(@"\n\nLoading ✍️ POST: %@\n\n", buildendpoint);
+    if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ POST: %@\n\n", buildendpoint);
 
     [task resume];
     
@@ -157,10 +159,10 @@ static NSString *token;
     else err = [NSError errorWithDomain:message code:code userInfo:nil];
     
     if (err == nil || err.code == 200) {
-        if (self.debug) NSLog(@"\n\nSucsess %d 🎉 %@\n\n" ,code ,endpoint);
+        if (self.debug) NSLog(@"\n\nOVATAR SUCSESS: %d 🎉 %@\n\n" ,code ,endpoint);
         
     }
-    else if (self.debug) NSLog(@"\n\nError %d 🎉 %@\n\n" ,code ,message);
+    else if (self.debug) NSLog(@"\n\nOVATAR ERROR: %d 🎉 %@\n\n" ,code ,message);
     
     return err;
     
@@ -170,7 +172,7 @@ static NSString *token;
    totalBytesSent:(int64_t)totalBytesSent totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
         CGFloat progress = (float)totalBytesSent/totalBytesExpectedToSend;
-        if (self.debug) NSLog(@"\n\nImage Upload Progress  %f%%\n\n" ,progress * 100);
+        if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD PROGRESS: %f%%\n\n" ,progress * 100);
         
         if ([self.odelegate respondsToSelector:@selector(ovatarIconUploadingWithProgress:)]) {
             [self.odelegate ovatarIconUploadingWithProgress:progress];
@@ -190,7 +192,12 @@ static NSString *token;
                 
             }
             
-            if (self.debug) NSLog(@"\n\nImage Uploaded Sucsessful %@\n\n" ,[output objectForKey:@"output"]);
+            [self setKey:[output objectForKey:@"key"]];
+            
+            if ([[output objectForKey:@"type"] isEqualToString:@"type"]) [self setEmail:[output objectForKey:@"user"]];
+            else [self setPhoneNumber:[output objectForKey:@"user"]];
+            
+            if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD SUCSESS: %@\n\n" ,[output objectForKey:@"output"]);
             
         }
         else {
@@ -200,12 +207,59 @@ static NSString *token;
                 
             }
             
-            if (self.debug) NSLog(@"\n\nImage Upload Failed %d %@\n\n" ,(int)error.code ,error.domain);
+            if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD FAILED: %d %@\n\n" ,(int)error.code ,error.domain);
             
         }
 
     }];
     
+}
+
+-(NSString *)ovatarEmail {
+    return [[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_email"];
+    
+}
+
+-(NSString *)ovatarPhoneNumber {
+    return [[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_phone"];
+
+}
+
+-(NSString *)ovatarKey {
+    return [[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_key"];
+
+}
+
+-(void)setKey:(NSString *)key {
+    [[NSUserDefaults standardUserDefaults] setObject:key forKey:@"ovatar_key"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    if (self.debug) NSLog(@"\n\nOVATAR KEY SAVED: %@" ,key);
+
+}
+
+-(void)setEmail:(NSString *)email {
+    if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:email]) {
+        [[NSUserDefaults standardUserDefaults] setObject:email forKey:@"ovatar_email"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        if (self.debug) NSLog(@"\n\nOVATAR EMAIL SAVED: %@" ,email);
+        
+    }
+    else if (self.debug) NSLog(@"\n\nOVATAR EMAIL INVALID");
+    
+}
+
+-(void)setPhoneNumber:(NSString *)phone {
+    if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:phone]) {        
+        [[NSUserDefaults standardUserDefaults] setObject:phone forKey:@"ovatar_phone"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        if (self.debug) NSLog(@"\n\nOVATAR PHONE NUMBER SAVED: %@" ,phone);
+
+    }
+    else if (self.debug) NSLog(@"\n\nOVATAR PHONE NUMBER INVALID");
+
 }
 
 @end
