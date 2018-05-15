@@ -12,10 +12,6 @@
 
 static NSString *token;
 
-#define OVATAR_HOST @"https://ovatar.io/api/"
-#define OVATAR_REGEX_PHONE @"(\\+)[0-9\\+\\-]{6,19}"
-#define OVATAR_REGEX_EMAIL @"[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}"
-
 +(void)sharedInstanceWithAppKey:(NSString *)appKey {
     token = appKey;
     
@@ -23,14 +19,16 @@ static NSString *token;
 
 +(OOvatar *)sharedInstance {
     if (![token containsString:@"app"]) {
-        NSLog(@"OVATAR ERROR: App key required. If you do not have an app key please signup to Ovatar at https://ovatar.io\n\n");
+        NSLog(@"\n\nOVATAR ERROR: App key required. If you do not have an app key please signup to Ovatar at https://ovatar.io\n\n");
         return nil;
         
     }
     else {
         OOvatar *ovatar = [[OOvatar alloc] init];
-        ovatar.gravatar = true;
-        ovatar.debug = false;
+        ovatar.gravatar = [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_gravatar"] boolValue];
+        ovatar.debug =  [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_debugging"] boolValue];
+        ovatar.privatearchive =  [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_private_archive"] boolValue];
+        ovatar.cacheexpiry = 60*60*3;
 
         return ovatar;
         
@@ -42,10 +40,13 @@ static NSString *token;
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:key forKey:@"id"];
     
-    [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
-        completion(error, output);
+    if (key.length > 2) {
+        [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
+            completion(error, output);
 
-    }];
+        }];
+        
+    }
     
 }
 
@@ -53,11 +54,14 @@ static NSString *token;
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:query forKey:@"query"];
     
-    [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
-        completion(error, output);
+    if (query.length > 2) {
+        [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
+            completion(error, output);
+            
+        }];
         
-    }];
-    
+    }
+
 }
 
 -(void)requestOvatarImageWithParameters:(NSDictionary *)params completion:(void (^)(NSError *error, id output))completion {
@@ -88,31 +92,34 @@ static NSString *token;
     
     NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:nil delegateQueue:[NSOperationQueue mainQueue]];
     NSURLSessionTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        NSHTTPURLResponse *status = (NSHTTPURLResponse *)response;
-        if (data.length > 0 && !error) {
-            if ([NSJSONSerialization JSONObjectWithData:data options:0 error:nil] != nil) {
-                NSDictionary *output = [[NSJSONSerialization JSONObjectWithData:data options:0 error:nil] firstObject];
-                NSError *err = [self requestErrorHandle:[[output objectForKey:@"error_code"] intValue] message:[output objectForKey:@"status"] error:nil endpoint:buildendpoint];
-                
-                completion(err ,output);
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            NSHTTPURLResponse *status = (NSHTTPURLResponse *)response;
+            if (data.length > 0 && !error) {
+                if ([NSJSONSerialization JSONObjectWithData:data options:0 error:nil] != nil) {
+                    NSDictionary *output = [[NSJSONSerialization JSONObjectWithData:data options:0 error:nil] firstObject];
+                    NSError *err = [self requestErrorHandle:[[output objectForKey:@"error_code"] intValue] message:[output objectForKey:@"status"] error:nil endpoint:buildendpoint];
+                    
+                    completion(err ,output);
 
+                }
+                else if ([UIImage imageWithData:data] != nil) {
+                    UIImage *output = [UIImage imageWithData:data];
+                    NSError *err = [NSError errorWithDomain:@"" code:(int)status.statusCode userInfo:nil];
+                    
+                    completion(err ,output);
+                    
+                }
+                
             }
-            else if ([UIImage imageWithData:data] != nil) {
-                UIImage *output = [UIImage imageWithData:data];
-                NSError *err = [NSError errorWithDomain:@"" code:(int)status.statusCode userInfo:nil];
-                
-                completion(err ,output);
-                
+            else {
+                NSError *err = [self requestErrorHandle:(int)status.statusCode message:error.domain error:error endpoint:buildendpoint];
+
+                completion(err ,nil);
+
             }
             
-        }
-        else {
-            NSError *err = [self requestErrorHandle:(int)status.statusCode message:error.domain error:error endpoint:buildendpoint];
-
-            completion(err ,nil);
-
-        }
-        
+        }];
+            
     }];
     
     if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ GET: %@\n\n", buildendpoint);
@@ -123,7 +130,7 @@ static NSString *token;
 
 -(void)uploadOvatar:(NSData *)image user:(NSString *)user  {
     NSOperationQueue *queue = [[NSOperationQueue alloc] init];
-    queue.qualityOfService = self.backgroundupload?NSQualityOfServiceBackground:NSQualityOfServiceUtility;
+    queue.qualityOfService = NSQualityOfServiceUtility;
     
     NSMutableString *buildendpoint = [[NSMutableString alloc] init];
     [buildendpoint appendString:OVATAR_HOST];
@@ -141,8 +148,8 @@ static NSString *token;
     [request addValue:token forHTTPHeaderField:@"oappkey"];
     [request setHTTPMethod:@"POST"];
     [request setHTTPBody:[NSJSONSerialization dataWithJSONObject:endpointparams options:NSJSONWritingPrettyPrinted error:nil]];
-
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:queue];
+    
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:[NSOperationQueue mainQueue]];
     NSURLSessionUploadTask *task = [session uploadTaskWithStreamedRequest:request];
 
     if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ POST: %@\n\n", buildendpoint);
@@ -178,7 +185,7 @@ static NSString *token;
             [self.odelegate ovatarIconUploadingWithProgress:progress];
             
         }
-
+        
     }];
     
 }
@@ -187,15 +194,19 @@ static NSString *token;
     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
         NSDictionary *output = [[NSJSONSerialization JSONObjectWithData:data options:0 error:nil] firstObject];
         if ([[output objectForKey:@"error_code"] intValue] == 200) {
+            NSDictionary *content = [output objectForKey:@"output"];
+            NSString *type = [content objectForKey:@"type"];
+            NSString *key = [content objectForKey:@"key"];
+
+            [self setKey:key];
+            
+            if ([type isEqualToString:@"email"]) [self setEmail:[output objectForKey:@"user"]];
+            else [self setPhoneNumber:[output objectForKey:@"user"]];
+            
             if ([self.odelegate respondsToSelector:@selector(ovatarIconWasUpdatedSucsessfully:)]) {
                 [self.odelegate ovatarIconWasUpdatedSucsessfully:[output objectForKey:@"output"]];
                 
             }
-            
-            [self setKey:[output objectForKey:@"key"]];
-            
-            if ([[output objectForKey:@"type"] isEqualToString:@"type"]) [self setEmail:[output objectForKey:@"user"]];
-            else [self setPhoneNumber:[output objectForKey:@"user"]];
             
             if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD SUCSESS: %@\n\n" ,[output objectForKey:@"output"]);
             
@@ -231,10 +242,14 @@ static NSString *token;
 }
 
 -(void)setKey:(NSString *)key {
-    [[NSUserDefaults standardUserDefaults] setObject:key forKey:@"ovatar_key"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-    
-    if (self.debug) NSLog(@"\n\nOVATAR KEY SAVED: %@" ,key);
+    if (![[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:key] && ![[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:key]) {
+        [[NSUserDefaults standardUserDefaults] setObject:key forKey:@"ovatar_key"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        if (self.debug) NSLog(@"\n\nOVATAR KEY SAVED: %@" ,key);
+        
+    }
+    else if (self.debug) NSLog(@"\n\nOVATAR KEY INVALID");
 
 }
 
@@ -261,5 +276,87 @@ static NSString *token;
     else if (self.debug) NSLog(@"\n\nOVATAR PHONE NUMBER INVALID");
 
 }
+
+-(void)setDebugging:(BOOL)enabled {
+    self.debug = enabled;
+    
+    [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_debugging"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    NSLog(@"\n\nOVATAR DEBUGGING %@" ,enabled?@"ENABLED":@"DISABLED");
+    
+}
+
+-(void)setPrivateArchive:(BOOL)enabled {
+    self.privatearchive = enabled;
+
+    [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_private_archive"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    NSLog(@"\n\nOVATAR PRIVATE ARCHIVE %@" ,enabled?@"ENABLED":@"DISABLED");
+
+}
+
+-(void)setGravatarFallback:(BOOL)enabled {
+    self.gravatar = enabled;
+
+    [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_gravatar"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    NSLog(@"\n\nOVATAR GRAVATAR FALLBACK %@" ,enabled?@"ENABLED":@"DISABLED");
+
+}
+
+-(void)imageCacheDestroy {
+    NSUserDefaults *cache = [NSUserDefaults standardUserDefaults];
+    for (NSString *key in cache.dictionaryRepresentation.allKeys) {
+        if ([key containsString:@"ovatar"]) {
+            [cache removeObjectForKey:key];
+            [cache synchronize];
+            
+        }
+        
+    }
+    
+}
+
+-(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer {
+    NSUserDefaults *cache = [NSUserDefaults standardUserDefaults];
+    if (image != nil) {
+        if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
+            [cache setObject:UIImagePNGRepresentation(image) forKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
+            [cache setObject:[NSDate dateWithTimeIntervalSinceNow:self.cacheexpiry] forKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
+            
+        }
+        
+    }
+    else {
+        if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
+            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
+            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
+            
+        }
+        
+    }
+    
+    [cache synchronize];
+    
+}
+
+-(UIImage *)imageFromCache:(NSString *)identifyer {
+    if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
+        NSUserDefaults *cache = [NSUserDefaults standardUserDefaults];
+        NSDate *expiry = [cache objectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
+        NSData *output = [cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
+        
+        if ([[NSDate date] compare:expiry] == NSOrderedDescending || expiry == nil) return nil;
+        else if ([cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]] == nil) return nil;
+        else return [UIImage imageWithData:output];
+        
+    }
+    return nil;
+    
+}
+
 
 @end
