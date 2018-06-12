@@ -15,7 +15,6 @@
 
 @protocol OOvatarDelegate;
 @interface OOvatar : NSObject <NSURLSessionTaskDelegate>
-
 typedef NS_ENUM(NSInteger, OImageSize) {
     OImageSizeLarge,
     OImageSizeMedium,
@@ -34,10 +33,9 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 @property (nonatomic ,assign) OImageSize size;
 @property (nonatomic ,assign) OOutputType output;
 @property (nonatomic ,assign) UIImage *placeholder;
-@property (nonatomic ,assign) BOOL gravatar;
-@property (nonatomic ,assign) BOOL debug;
-@property (nonatomic ,assign) BOOL privatearchive;
-@property (nonatomic ,assign) int cacheexpiry;
+
+@property (nonatomic ,weak) NSString *okey;
+@property (nonatomic ,weak) NSString *oquery;
 
 +(OOvatar *)sharedInstance;
 +(void)sharedInstanceWithAppKey:(NSString *)appKey;
@@ -49,6 +47,7 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 -(void)setDebugging:(BOOL)enabled;
 -(void)setPrivateArchive:(BOOL)enabled;
 -(void)setGravatarFallback:(BOOL)enabled;
+-(void)setCacheExpirySeconds:(int)seconds;
 
 -(NSString *)ovatarEmail;
 -(NSString *)ovatarPhoneNumber;
@@ -56,8 +55,9 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 
 -(void)returnOvatarIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion;
+-(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion;
 
--(void)uploadOvatar:(NSData *)image user:(NSString *)user;
+-(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user;
 
 -(void)imageCacheDestroy;
 -(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer;

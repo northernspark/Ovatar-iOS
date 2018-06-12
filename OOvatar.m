@@ -24,22 +24,21 @@ static NSString *token;
         
     }
     else {
-        OOvatar *ovatar = [[OOvatar alloc] init];
-        ovatar.gravatar = [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_gravatar"] boolValue];
-        ovatar.debug =  [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_debugging"] boolValue];
-        ovatar.privatearchive =  [[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_private_archive"] boolValue];
-        ovatar.cacheexpiry = 60*60*3;
-
-        return ovatar;
+        return [[OOvatar alloc] init];;
         
     }
+    
+}
+
+-(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion {
+    
     
 }
 
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion {
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:key forKey:@"id"];
-    
+
     if (key.length > 2) {
         [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
             completion(error, output);
@@ -47,6 +46,9 @@ static NSString *token;
         }];
         
     }
+    
+    self.okey = key;
+
     
 }
 
@@ -61,6 +63,9 @@ static NSString *token;
         }];
         
     }
+    
+    self.oquery = query;
+
 
 }
 
@@ -69,7 +74,7 @@ static NSString *token;
     [buildendpoint appendString:OVATAR_HOST];
     [buildendpoint appendString:@"ovatar.php"];
     [buildendpoint appendString:@"?"];
-    [buildendpoint appendString:[NSString stringWithFormat:@"fallback=%@&" ,self.gravatar?@"true":@"false"]];
+    [buildendpoint appendString:[NSString stringWithFormat:@"fallback=%@&" ,[[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_gravatar"] boolValue]?@"true":@"false"]];
 
     if (self.size == OImageSizeLarge) [buildendpoint appendString:@"size=large&"];
     else if (self.size == OImageSizeMedium) [buildendpoint appendString:@"size=medium&"];
@@ -122,13 +127,13 @@ static NSString *token;
             
     }];
     
-    if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ GET: %@\n\n", buildendpoint);
+    if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR LOADING: ✍️ GET: %@\n\n", buildendpoint);
     
     [task resume];
     
 }
 
--(void)uploadOvatar:(NSData *)image user:(NSString *)user  {
+-(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user {
     NSOperationQueue *queue = [[NSOperationQueue alloc] init];
     queue.qualityOfService = NSQualityOfServiceUtility;
     
@@ -141,18 +146,24 @@ static NSString *token;
     
     NSMutableDictionary *endpointparams = [[NSMutableDictionary alloc] init];
     [endpointparams setValue:formatdata forKey:@"ovatar"];
-    [endpointparams setValue:@(self.privatearchive) forKey:@"private"];
+    [endpointparams setValue:@([[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_private_archive"] boolValue]) forKey:@"private"];
     [endpointparams setValue:user forKey:@"user"];
+    
+    if (metadata != nil) [endpointparams addEntriesFromDictionary:metadata];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:buildendpoint] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:40];
     [request addValue:token forHTTPHeaderField:@"oappkey"];
+    [request addValue:[[UIDevice currentDevice] name] forHTTPHeaderField:@"odevice"];
+    [request addValue:[[NSLocale currentLocale] objectForKey:NSLocaleCountryCode] forHTTPHeaderField:@"ocountry"];
+    [request addValue:@"ios" forHTTPHeaderField:@"oplatform"];
+
     [request setHTTPMethod:@"POST"];
     [request setHTTPBody:[NSJSONSerialization dataWithJSONObject:endpointparams options:NSJSONWritingPrettyPrinted error:nil]];
     
     NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:[NSOperationQueue mainQueue]];
     NSURLSessionUploadTask *task = [session uploadTaskWithStreamedRequest:request];
 
-    if (self.debug) NSLog(@"\n\nOVATAR LOADING: ✍️ POST: %@\n\n", buildendpoint);
+    if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR LOADING: ✍️ POST: %@\n\n", buildendpoint);
 
     [task resume];
     
@@ -166,10 +177,10 @@ static NSString *token;
     else err = [NSError errorWithDomain:message code:code userInfo:nil];
     
     if (err == nil || err.code == 200) {
-        if (self.debug) NSLog(@"\n\nOVATAR SUCSESS: %d 🎉 %@\n\n" ,code ,endpoint);
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR SUCSESS: %d 🎉 %@\n\n" ,code ,endpoint);
         
     }
-    else if (self.debug) NSLog(@"\n\nOVATAR ERROR: %d 🎉 %@\n\n" ,code ,message);
+    else if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR ERROR: %d 🎉 %@\n\n" ,code ,message);
     
     return err;
     
@@ -179,7 +190,7 @@ static NSString *token;
    totalBytesSent:(int64_t)totalBytesSent totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
         CGFloat progress = (float)totalBytesSent/totalBytesExpectedToSend;
-        if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD PROGRESS: %f%%\n\n" ,progress * 100);
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR IMAGE UPLOAD PROGRESS: %f%%\n\n" ,progress * 100);
         
         if ([self.odelegate respondsToSelector:@selector(ovatarIconUploadingWithProgress:)]) {
             [self.odelegate ovatarIconUploadingWithProgress:progress];
@@ -200,15 +211,15 @@ static NSString *token;
 
             [self setKey:key];
             
-            if ([type isEqualToString:@"email"]) [self setEmail:[output objectForKey:@"user"]];
-            else [self setPhoneNumber:[output objectForKey:@"user"]];
+            if ([type isEqualToString:@"email"]) [self setEmail:[content objectForKey:@"user"]];
+            else [self setPhoneNumber:[content objectForKey:@"user"]];
             
             if ([self.odelegate respondsToSelector:@selector(ovatarIconWasUpdatedSucsessfully:)]) {
                 [self.odelegate ovatarIconWasUpdatedSucsessfully:[output objectForKey:@"output"]];
                 
             }
             
-            if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD SUCSESS: %@\n\n" ,[output objectForKey:@"output"]);
+            if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR IMAGE UPLOAD SUCSESS: %@\n\n" ,[output objectForKey:@"output"]);
             
         }
         else {
@@ -218,7 +229,7 @@ static NSString *token;
                 
             }
             
-            if (self.debug) NSLog(@"\n\nOVATAR IMAGE UPLOAD FAILED: %d %@\n\n" ,(int)error.code ,error.domain);
+            if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR IMAGE UPLOAD FAILED: %d %@\n\n" ,(int)error.code ,error.domain);
             
         }
 
@@ -246,10 +257,10 @@ static NSString *token;
         [[NSUserDefaults standardUserDefaults] setObject:key forKey:@"ovatar_key"];
         [[NSUserDefaults standardUserDefaults] synchronize];
         
-        if (self.debug) NSLog(@"\n\nOVATAR KEY SAVED: %@" ,key);
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR KEY SAVED: %@" ,key);
         
     }
-    else if (self.debug) NSLog(@"\n\nOVATAR KEY INVALID");
+    else if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR KEY INVALID");
 
 }
 
@@ -258,10 +269,10 @@ static NSString *token;
         [[NSUserDefaults standardUserDefaults] setObject:email forKey:@"ovatar_email"];
         [[NSUserDefaults standardUserDefaults] synchronize];
         
-        if (self.debug) NSLog(@"\n\nOVATAR EMAIL SAVED: %@" ,email);
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR EMAIL SAVED: %@" ,email);
         
     }
-    else if (self.debug) NSLog(@"\n\nOVATAR EMAIL INVALID");
+    else if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR EMAIL INVALID");
     
 }
 
@@ -270,16 +281,14 @@ static NSString *token;
         [[NSUserDefaults standardUserDefaults] setObject:phone forKey:@"ovatar_phone"];
         [[NSUserDefaults standardUserDefaults] synchronize];
         
-        if (self.debug) NSLog(@"\n\nOVATAR PHONE NUMBER SAVED: %@" ,phone);
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR PHONE NUMBER SAVED: %@" ,phone);
 
     }
-    else if (self.debug) NSLog(@"\n\nOVATAR PHONE NUMBER INVALID");
+    else if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR PHONE NUMBER INVALID");
 
 }
 
 -(void)setDebugging:(BOOL)enabled {
-    self.debug = enabled;
-    
     [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_debugging"];
     [[NSUserDefaults standardUserDefaults] synchronize];
     
@@ -288,8 +297,6 @@ static NSString *token;
 }
 
 -(void)setPrivateArchive:(BOOL)enabled {
-    self.privatearchive = enabled;
-
     [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_private_archive"];
     [[NSUserDefaults standardUserDefaults] synchronize];
     
@@ -298,13 +305,44 @@ static NSString *token;
 }
 
 -(void)setGravatarFallback:(BOOL)enabled {
-    self.gravatar = enabled;
-
     [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_gravatar"];
     [[NSUserDefaults standardUserDefaults] synchronize];
     
     NSLog(@"\n\nOVATAR GRAVATAR FALLBACK %@" ,enabled?@"ENABLED":@"DISABLED");
 
+}
+
+-(void)setCacheExpirySeconds:(int)seconds {
+    if (seconds > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:@(seconds) forKey:@"ovatar_expiry"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        NSLog(@"\n\nOVATAR CACHE EXPIRY CHANGED TO %d" ,seconds);
+        
+    }
+    
+}
+
+-(NSInteger)variable:(NSString *)key {
+    NSUserDefaults *stored = [NSUserDefaults standardUserDefaults];
+    NSString *keyformatted = [NSString stringWithFormat:@"ovatar_%@" ,key];
+    if ([key isEqualToString:@"expiry"]) {
+        if (![stored.dictionaryRepresentation.allKeys containsObject:keyformatted]) return 60*30;
+        else return [[stored objectForKey:keyformatted] intValue];
+    
+    }
+    else if ([key isEqualToString:@"debugging"]) {
+        if (![stored.dictionaryRepresentation.allKeys containsObject:keyformatted]) return false;
+        else return [[stored objectForKey:keyformatted] boolValue];
+        
+    }
+    else if ([key isEqualToString:@"private_archive"]) {
+        if (![stored.dictionaryRepresentation.allKeys containsObject:keyformatted]) return false;
+        else return [[stored objectForKey:keyformatted] boolValue];
+        
+    }
+    else return 0;
+    
 }
 
 -(void)imageCacheDestroy {
@@ -318,22 +356,24 @@ static NSString *token;
         
     }
     
+    if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR IMAGE CACHE DESTROYED");
+    
 }
 
 -(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer {
     NSUserDefaults *cache = [NSUserDefaults standardUserDefaults];
     if (image != nil) {
         if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
-            [cache setObject:UIImagePNGRepresentation(image) forKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
-            [cache setObject:[NSDate dateWithTimeIntervalSinceNow:self.cacheexpiry] forKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
+            [cache setObject:UIImagePNGRepresentation(image) forKey:[NSString stringWithFormat:@"ovatar_data_%@_size%d" ,identifyer, (int)self.size]];
+            [cache setObject:[NSDate dateWithTimeIntervalSinceNow:(int)[self variable:@"expiry"]] forKey:[NSString stringWithFormat:@"ovatar_expiry_%@_size%d" ,identifyer ,(int)self.size]];
             
         }
         
     }
     else {
         if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
-            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
-            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
+            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_data_%@_size%d" ,identifyer ,(int)self.size]];
+            [cache removeObjectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@_size%d" ,identifyer ,(int)self.size]];
             
         }
         

@@ -16,10 +16,15 @@
     self.ovatar.output = self.placeholder==nil?OOutputTypeDefault:OOutputType404;
     self.ovatar.size = [self imageSize:self.bounds];
     self.ovatar.odelegate = self;
+    
+    self.opreview = [[OOvatarPreview alloc] init];
+    self.opreview.backgroundColor = [UIColor clearColor];
 
+    self.crossfade = 0.6;
+    self.preview = false;
     self.animated = true;
     self.presentpicker = true;
-    self.contentMode = UIViewContentModeScaleToFill;
+    self.contentMode = UIViewContentModeScaleAspectFill;
 
     if (![self.subviews containsObject:self.container]) {
         self.container = [[UIImageView alloc] initWithFrame:self.bounds];
@@ -31,7 +36,7 @@
         
         UITapGestureRecognizer *gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(imageTappedWithGesture:)];
         gesture.delegate = self;
-        gesture.enabled = self.hasaction;
+        gesture.enabled = true;
         [self.container addGestureRecognizer:gesture];
         
     }
@@ -93,7 +98,6 @@
                         else if (error.code == 404) {
                             if ([output isKindOfClass:[UIImage class]] && self.placeholder == nil) {
                                 [self imageSet:(UIImage *)output animated:self.animated];
-                                [self.ovatar imageSaveToCache:(UIImage *)output identifyer:self.ovatar.ovatarKey];
                                 
                             }
                             else {
@@ -189,6 +193,13 @@
         }
         
     }
+    else {
+        if (self.preview) {
+            [self.opreview previewPresent:self.container caption:self.previewcaption];
+                        
+        }
+        
+    }
     
 }
 
@@ -216,7 +227,21 @@
         if (self.allowsphotoediting) output = [info objectForKey:UIImagePickerControllerEditedImage];
         else output = [info objectForKey:UIImagePickerControllerOriginalImage];
         
-        [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8)];
+        if (self.onlyfaces) {
+            if ([self imageDetectFace:output]) {
+                [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:info];
+                
+            }
+            else {
+                NSLog(@"\n\nOVATAR ERROR: Image does not contain any human faces\n\n");
+                if ([self.oicondelegate respondsToSelector:@selector(ovatarIconUploadFailedWithErrors:)]) {
+                    [self ovatarIconUploadFailedWithErrors:[NSError errorWithDomain:@"Image does not contain any human faces" code:415 userInfo:nil]];
+                    
+                }
+                
+            }
+        }
+        else [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:info];
         
     }];
     
@@ -224,7 +249,7 @@
 
 -(void)imageSet:(UIImage *)image animated:(BOOL)animated {
     if (animated) {
-        [UIView transitionWithView:self.container duration:0.6 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
+        [UIView transitionWithView:self.container duration:self.crossfade options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             if (image.CGImage != NULL && image.CGImage != nil) {
                 [self.container setImage:image];
                 
@@ -238,69 +263,88 @@
 }
 
 -(void)imageDownloadWithQuery:(NSString *)query {
-    if (query.length > 1) {
-        if (self.hasaction) {
-            if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:query]) {
-                [self.ovatar setEmail:query];
-                [self setNeedsDisplay];
+    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+        if (query.length > 1) {
+            if (self.hasaction) {
+                if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:query]) {
+                    [self.ovatar setEmail:query];
+                    [self setNeedsDisplay];
 
-            }
-            else if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:query]) {
-                [self.ovatar setPhoneNumber:query];
-                [self setNeedsDisplay];
-
-            }
-            else {
-                [self.ovatar setKey:query];
-                [self setNeedsDisplay];
-
-            }
-
-        }
-        else {
-            if ([self.ovatar imageFromCache:query]) {
-                [self imageSet:[self.ovatar imageFromCache:query] animated:self.animated];
-
-            }
-            else {
-                if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:query] || [[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:query]) {
-                    [self.ovatar returnOvatarIconWithQuery:query completion:^(NSError *error, id output) {
-                        if ([output isKindOfClass:[UIImage class]]) {
-                            [self imageSet:(UIImage *)output animated:self.animated];
-                            [self.ovatar imageSaveToCache:(UIImage *)output identifyer:query];
-
-                        }
-                        
-                    }];
+                }
+                else if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:query]) {
+                    [self.ovatar setPhoneNumber:query];
+                    [self setNeedsDisplay];
 
                 }
                 else {
-                    [self.ovatar returnOvatarIconWithKey:query completion:^(NSError *error, id output) {
-                        if ([output isKindOfClass:[UIImage class]]) {
-                            [self imageSet:(UIImage *)output animated:self.animated];
-                            [self.ovatar imageSaveToCache:(UIImage *)output identifyer:query];
-                            
-                        }
-                        
-                    }];
-                    
+                    [self.ovatar setKey:query];
+                    [self setNeedsDisplay];
+
                 }
 
             }
-        
+            else {
+                if ([self.ovatar imageFromCache:query]) {
+                    [self imageSet:[self.ovatar imageFromCache:query] animated:self.animated];
+
+                }
+                else {
+                    if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:query] || [[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:query]) {
+                        [self.ovatar returnOvatarIconWithQuery:query completion:^(NSError *error, id output) {
+                            if ([output isKindOfClass:[UIImage class]]) {
+                                [self imageSet:(UIImage *)output animated:self.animated];
+                                [self.ovatar imageSaveToCache:(UIImage *)output identifyer:query];
+
+                            }
+                            
+                        }];
+
+                    }
+                    else {
+                        [self.ovatar returnOvatarIconWithKey:query completion:^(NSError *error, id output) {
+                            if ([output isKindOfClass:[UIImage class]]) {
+                                [self imageSet:(UIImage *)output animated:self.animated];
+                                [self.ovatar imageSaveToCache:(UIImage *)output identifyer:query];
+                                
+                            }
+                            
+                        }];
+
+                    }
+
+                }
+            
+            }
+            
         }
+        else [self imageSet:self.placeholder animated:self.animated];
         
-    }
-    else [self imageSet:self.placeholder animated:self.animated];
+    }];
 
 }
 
--(void)imageUpdateWithImage:(NSData *)image {
+-(void)imageUpdateWithImage:(NSData *)image info:(NSDictionary *)info {
+    NSURL *url = [info objectForKey:UIImagePickerControllerReferenceURL];
+    PHFetchResult *fetchResult = [PHAsset fetchAssetsWithALAssetURLs:@[url] options:nil];
+    PHAsset *asset = fetchResult.firstObject;
+    
+    NSString *type;
+    if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoPanorama) type = @"panorama";
+    else if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoScreenshot) type = @"screencapture";
+    else if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) type = @"livephoto";
+    else type = @"livephoto";
+    
+    NSMutableDictionary *metadata = [[NSMutableDictionary alloc] init];
+    [metadata setObject:@((float)asset.location.coordinate.latitude) forKey:@"latitude"];
+    [metadata setObject:@((float)asset.location.coordinate.longitude) forKey:@"longitude"];
+    [metadata setObject:asset.creationDate forKey:@"creation"];
+    [metadata setObject:type forKey:@"type"];
+
     NSString *user;
     if (self.ovatar.ovatarEmail != nil) user = self.ovatar.ovatarEmail;
     else user = self.ovatar.ovatarPhoneNumber;
     
-    [self.ovatar uploadOvatar:image user:user];
+    [self.ovatar uploadOvatar:image metadata:metadata user:user];
     [self.ovatar imageSaveToCache:[UIImage imageWithData:image] identifyer:user];
     
 }
@@ -310,6 +354,15 @@
     else if (rect.size.width >= (120 / 2) && rect.size.width <= (350 / 2)) return OImageSizeMedium;
     else return OImageSizeLarge;
 
+}
+
+-(BOOL)imageDetectFace:(UIImage *)image {
+    CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeFace context:nil options:@{CIDetectorAccuracy: CIDetectorAccuracyHigh}];
+    NSArray *features = [detector featuresInImage:image.CIImage options:nil];
+
+    if (features.count > 0) return true;
+    else return false;
+    
 }
 
 -(void)ovatarIconWasUpdatedSucsessfully:(NSDictionary *)output {
