@@ -24,6 +24,7 @@
     self.preview = false;
     self.animated = true;
     self.presentpicker = true;
+    self.progressloader = true;
     self.contentMode = UIViewContentModeScaleAspectFill;
 
     if (![self.subviews containsObject:self.container]) {
@@ -34,10 +35,28 @@
         self.container.userInteractionEnabled = true;
         [self addSubview:self.container];
         
-        UITapGestureRecognizer *gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(imageTappedWithGesture:)];
+        loadercontainer = [[UIView alloc] initWithFrame:self.container.bounds];
+        loadercontainer.backgroundColor = [UIColor colorWithRed:132.0/255.0 green:154.0/255.0 blue:214.0/255.0 alpha:0.6];
+        loadercontainer.hidden = !self.progressloader;
+        loadercontainer.transform = CGAffineTransformMakeScale(1.08, 1.08);
+        loadercontainer.alpha = 0.0;
+        [self.container addSubview:loadercontainer];
+        
+        loader = [CAShapeLayer layer];
+        loader.path = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(6.0, 6.0, loadercontainer.bounds.size.width - 24.0, loadercontainer.bounds.size.height - (24.0)) cornerRadius:loadercontainer.bounds.size.width].CGPath;
+        loader.position = CGPointMake(6.0, 6.0);
+        loader.fillColor = [UIColor clearColor].CGColor;
+        loader.strokeColor = [UIColor whiteColor].CGColor;
+        loader.lineWidth = 3;
+        loader.lineCap = kCALineCapRound;
+        [loadercontainer.layer addSublayer:loader];
+        
+        gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(imageTappedWithGesture:)];
         gesture.delegate = self;
         gesture.enabled = true;
         [self.container addGestureRecognizer:gesture];
+        
+        [self imageLoader:OImageLoaderDownloading progress:1];
         
     }
     
@@ -228,7 +247,7 @@
         else output = [info objectForKey:UIImagePickerControllerOriginalImage];
         
         if (self.onlyfaces) {
-            if ([self imageDetectFace:output]) {
+            if ([self.ovatar imageDetectFace:output]) {
                 [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:info];
                 
             }
@@ -248,6 +267,7 @@
 }
 
 -(void)imageSet:(UIImage *)image animated:(BOOL)animated {
+    [self imageLoader:OImageLoaderDownloading progress:0];
     if (animated) {
         [UIView transitionWithView:self.container duration:self.crossfade options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             if (image.CGImage != NULL && image.CGImage != nil) {
@@ -337,12 +357,15 @@
     NSMutableDictionary *metadata = [[NSMutableDictionary alloc] init];
     [metadata setObject:@((float)asset.location.coordinate.latitude) forKey:@"latitude"];
     [metadata setObject:@((float)asset.location.coordinate.longitude) forKey:@"longitude"];
-    [metadata setObject:asset.creationDate forKey:@"creation"];
     [metadata setObject:type forKey:@"type"];
 
     NSString *user;
-    if (self.ovatar.ovatarEmail != nil) user = self.ovatar.ovatarEmail;
-    else user = self.ovatar.ovatarPhoneNumber;
+    if (self.ovatar.ovatarEmail != nil && self.ovatar.ovatarPhoneNumber == nil) user = self.ovatar.ovatarEmail;
+    else if (self.ovatar.ovatarEmail == nil && self.ovatar.ovatarPhoneNumber != nil) user = self.ovatar.ovatarPhoneNumber;
+    else if (self.ovatar.ovatarEmail != nil && self.ovatar.ovatarPhoneNumber != nil) {
+        user = [NSString stringWithFormat:@"%@|%@" ,self.ovatar.ovatarEmail, self.ovatar.ovatarPhoneNumber];
+        
+    }
     
     [self.ovatar uploadOvatar:image metadata:metadata user:user];
     [self.ovatar imageSaveToCache:[UIImage imageWithData:image] identifyer:user];
@@ -356,12 +379,40 @@
 
 }
 
--(BOOL)imageDetectFace:(UIImage *)image {
-    CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeFace context:nil options:@{CIDetectorAccuracy: CIDetectorAccuracyHigh}];
-    NSArray *features = [detector featuresInImage:image.CIImage options:nil];
+-(void)imageLoader:(OImageLoader)type progress:(float)progress {
+    CABasicAnimation *rotate = [CABasicAnimation animationWithKeyPath:@"transform.rotation"];
+    rotate.byValue = [NSNumber numberWithFloat:2.0f*M_PI];
+    rotate.duration = 2;
+    rotate.repeatCount = MAXFLOAT;
+    
+    if (type == OImageLoaderProgress) {
+        [loader setStrokeEnd:0.0];
+        [loader setStrokeEnd:progress * 3.6];
+        
+    }
+    else {
+        [loader setStrokeEnd:0.0];
+        [loader setStrokeEnd:280.0];
+    }
+    
+    if ([loader animationForKey:@"circle"]) {
+        [loadercontainer.layer addAnimation:rotate forKey:@"rotate"];
 
-    if (features.count > 0) return true;
-    else return false;
+    }
+    
+    [UIView animateWithDuration:0.3 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+        if (progress > 0 && progress <= 1) {
+            [loadercontainer setTransform:CGAffineTransformMakeScale(1.0, 1.0)];
+            [loadercontainer setAlpha:1.0];
+            
+        }
+        else {
+            [loadercontainer setTransform:CGAffineTransformMakeScale(1.08, 1.08)];
+            [loadercontainer setAlpha:0.0];
+            
+        }
+        
+    } completion:nil];
     
 }
 
@@ -387,6 +438,11 @@
 -(void)ovatarIconUploadingWithProgress:(float)progress {
     if ([self.oicondelegate respondsToSelector:@selector(ovatarIconUploadingWithProgress:)]) {
         [self.oicondelegate ovatarIconUploadingWithProgress:progress];
+        
+    }
+    
+    if (self.progressloader) {
+        [self imageLoader:OImageLoaderProgress progress:progress];
         
     }
     

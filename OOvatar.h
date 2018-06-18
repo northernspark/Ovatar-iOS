@@ -22,12 +22,20 @@ typedef NS_ENUM(NSInteger, OImageSize) {
 
 };
 
+typedef NS_ENUM(NSInteger, OImageLoader) {
+    OImageLoaderProgress,
+    OImageLoaderDownloading
+};
+
+
 typedef NS_ENUM(NSInteger, OOutputType) {
     OOutputTypeJSON,
     OOutputType404,
     OOutputTypeDefault,
     
 };
+
+
 
 @property (weak, nonatomic) id <OOvatarDelegate> odelegate;
 @property (nonatomic ,assign) OImageSize size;
@@ -53,6 +61,8 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 -(NSString *)ovatarPhoneNumber;
 -(NSString *)ovatarKey;
 
+-(NSDictionary *)ovatarAppInformation;
+
 -(void)returnOvatarIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion;
@@ -62,6 +72,7 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 -(void)imageCacheDestroy;
 -(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer;
 -(UIImage *)imageFromCache:(NSString *)identifyer;
+-(BOOL)imageDetectFace:(UIImage *)image;
 
 @end
 

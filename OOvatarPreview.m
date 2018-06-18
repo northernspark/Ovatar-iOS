@@ -20,21 +20,21 @@
         container = [[UIView alloc] initWithFrame:application.delegate.window.bounds];
         container.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.85];
         
-        ovatar = [[UIImageView alloc] initWithFrame:oframe];
-        ovatar.backgroundColor = [UIColor clearColor];
-        ovatar.clipsToBounds = true;
-        ovatar.image = icon.image;
-        ovatar.userInteractionEnabled = true;
-        ovatar.layer.cornerRadius = icon.layer.cornerRadius;
+        profile = [[UIImageView alloc] initWithFrame:oframe];
+        profile.backgroundColor = [UIColor clearColor];
+        profile.clipsToBounds = true;
+        profile.image = icon.image;
+        profile.userInteractionEnabled = true;
+        profile.layer.cornerRadius = icon.layer.cornerRadius;
         
         [application.delegate.window setWindowLevel:UIWindowLevelNormal];
         [application.delegate.window addSubview:container];
-        [application.delegate.window addSubview:ovatar];
+        [application.delegate.window addSubview:profile];
         
         gesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(gesture:)];
         gesture.enabled = true;
         gesture.delegate = self;
-        [ovatar addGestureRecognizer:gesture];
+        [profile addGestureRecognizer:gesture];
         
         logo = [[UIButton alloc] initWithFrame:CGRectMake(container.bounds.size.width - 48.0, container.bounds.size.height - 48.0, 20.0, 20.0)];
         logo.backgroundColor = [UIColor clearColor];
@@ -49,8 +49,8 @@
         
         [UIView animateWithDuration:0.3 delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
             if (container.bounds.size.width > 0 && container.bounds.size.height > 0) {
-                [ovatar.layer setCornerRadius:self.rounded];
-                [ovatar setFrame:CGRectMake
+                [profile.layer setCornerRadius:self.rounded];
+                [profile setFrame:CGRectMake
                     (5.0 + (container.bounds.size.width / 2) - ((icon.image.size.width * aspectratio) / 2),
                     (5.0 + container.bounds.size.height / 2) - ((icon.image.size.height * aspectratio) / 2),
                     ((icon.image.size.width * aspectratio) - 10.0),
@@ -68,25 +68,25 @@
 }
 
 -(void)previewUpdate:(UIImage *)image {
-    [ovatar setImage:image];
+    [profile setImage:image];
     
 }
 
 -(void)gesture:(UIPanGestureRecognizer *)gesture {
     oposition = [gesture translationInView:container.superview];
     if (gesture.state == UIGestureRecognizerStateChanged) {
-        [ovatar setCenter:CGPointMake(container.bounds.size.width / 2, container.center.y + (oposition.y / 4))];
+        [profile setCenter:CGPointMake(container.bounds.size.width / 2, container.center.y + (oposition.y / 4))];
         [container setBackgroundColor:[UIColor colorWithWhite:0.0 alpha:0.85 - ((fabs(oposition.y) / 1000.0))]];
         
     }
     else if (gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateEnded) {
         if (oposition.y < -240.0 || oposition.y > 240.0) {
             [UIView animateWithDuration:0.2 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-                [ovatar setFrame:oframe];
+                [profile setFrame:oframe];
 
             } completion:^(BOOL finished) {
                 [container removeFromSuperview];
-                [ovatar removeFromSuperview];
+                [profile removeFromSuperview];
                 [self removeFromSuperview];
 
             }];
@@ -94,7 +94,7 @@
         }
         else {
             [UIView animateWithDuration:0.2 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-                [ovatar setFrame:CGRectMake(5.0, (container.bounds.size.height / 2) - (ovatar.bounds.size.height / 2), ovatar.bounds.size.width, ovatar.bounds.size.height)];
+                [profile setFrame:CGRectMake(5.0, (container.bounds.size.height / 2) - (profile.bounds.size.height / 2), profile.bounds.size.width, profile.bounds.size.height)];
                 
             } completion:nil];
             
@@ -131,6 +131,17 @@
 }
 
 -(void)details {
+    SFSafariViewController *safari = [[SFSafariViewController alloc] initWithURL:[NSURL URLWithString:@"http://ovatar.io/"]];
+    if (@available(iOS 11.0, *)) {
+        safari.dismissButtonStyle = SFSafariViewControllerDismissButtonStyleDone;
+        
+    }
+    safari.delegate = self;
+    
+    [(UINavigationController  *)self.window.rootViewController presentViewController:safari animated:true completion:^{
+        [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:false];
+        
+    }];
     
 }
 

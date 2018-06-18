@@ -7,12 +7,12 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "OOvatar.h"
+#import <SafariServices/SafariServices.h>
 
-@interface OOvatarPreview : UIView <UIGestureRecognizerDelegate> {
+@interface OOvatarPreview : UIView <UIGestureRecognizerDelegate, SFSafariViewControllerDelegate> {
     UIView *container;
     UIPanGestureRecognizer *gesture;
-    UIImageView *ovatar;
+    UIImageView *profile;
     UIButton *logo;
     CGRect oframe;
     CGPoint oposition;
@@ -24,7 +24,5 @@
 
 @property (nonatomic, strong) id customicon;
 @property (nonatomic, assign) float rounded;
-
-@property (nonatomic, strong) OOvatar *ovatar;
 
 @end

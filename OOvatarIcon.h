@@ -15,7 +15,9 @@
 
 @protocol OOvatarIconDelegate;
 @interface OOvatarIcon : UIView <UIGestureRecognizerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, OOvatarDelegate> {
-    
+    CAShapeLayer *loader;
+    UIView *loadercontainer;
+    UITapGestureRecognizer *gesture;
     
 }
 
@@ -46,6 +48,9 @@
 
 @property (nonatomic) BOOL allowsphotoediting;
 //Presents default image editor for framing and cropping selected image. Default is set to FALSE.
+
+@property (nonatomic) BOOL progressloader;
+//Shows progress loader within the Icon when uploading an new image. Default is set to TRUE.
 
 @property (nonatomic, strong) UIImageView *container;
 @property (nonatomic, strong) OOvatar *ovatar;

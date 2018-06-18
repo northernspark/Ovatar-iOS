@@ -25,13 +25,37 @@ static NSString *token;
     }
     else {
         return [[OOvatar alloc] init];;
-        
+
     }
     
 }
 
 -(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion {
+    NSString *url = [NSString stringWithFormat:@"%@app/info.php" ,OVATAR_HOST];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:40];
+    [request addValue:token forHTTPHeaderField:@"oappkey"];
+    [request setHTTPMethod:@"GET"];
     
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:nil delegateQueue:[NSOperationQueue mainQueue]];
+    NSURLSessionTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            NSDictionary *output = [[[NSJSONSerialization JSONObjectWithData:data options:0 error:nil] firstObject] objectForKey:@"output"];
+            for (NSString *key in output.allKeys) {
+                if (key != nil) {
+                    [[NSUserDefaults standardUserDefaults] setObject:[output objectForKey:key] forKey:[NSString stringWithFormat:@"ovatar_app_%@" ,key]];
+                    
+                }
+                
+            }
+
+            [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:@"ovatar_app_queried"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+            
+        }];
+        
+    }];
+    
+    [task resume];
     
 }
 
@@ -39,6 +63,13 @@ static NSString *token;
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:key forKey:@"id"];
 
+    if (self.ovatarAppInformation == nil) {
+        [self returnOvatarAppInformation:^(NSDictionary *app, NSError *error) {
+            
+        }];
+        
+    }
+    
     if (key.length > 2) {
         [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
             completion(error, output);
@@ -55,6 +86,13 @@ static NSString *token;
 -(void)returnOvatarIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion {
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:query forKey:@"query"];
+    
+    if (self.ovatarAppInformation == nil) {
+        [self returnOvatarAppInformation:^(NSDictionary *app, NSError *error) {
+            
+        }];
+        
+    }
     
     if (query.length > 2) {
         [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
@@ -252,6 +290,15 @@ static NSString *token;
 
 }
 
+-(NSDictionary *)ovatarAppInformation {
+    NSUserDefaults *data = [NSUserDefaults standardUserDefaults];
+    NSDate *queried = [data objectForKey:@"ovatar_app_queried"];
+    if ([[NSDate dateWithTimeIntervalSinceNow:60*60*24] compare:queried] == NSOrderedAscending || queried == nil) return nil;
+    else if (queried == nil) return nil;
+    else return [data objectForKey:@"ovatar_app"];
+    
+}
+
 -(void)setKey:(NSString *)key {
     if (![[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:key] && ![[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:key]) {
         [[NSUserDefaults standardUserDefaults] setObject:key forKey:@"ovatar_key"];
@@ -292,6 +339,15 @@ static NSString *token;
     [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:@"ovatar_debugging"];
     [[NSUserDefaults standardUserDefaults] synchronize];
     
+    if (self.ovatarAppInformation != nil) {
+        NSLog(@"\n\nOVATAR APP INFORMATION");
+        for (NSString *key in self.ovatarAppInformation) {
+            NSLog(@"\n%@: %@" ,[key uppercaseString] ,[self.ovatarAppInformation objectForKey:key]);
+
+        }
+        
+    }
+
     NSLog(@"\n\nOVATAR DEBUGGING %@" ,enabled?@"ENABLED":@"DISABLED");
     
 }
@@ -396,6 +452,29 @@ static NSString *token;
     }
     return nil;
     
+}
+
+-(BOOL)imageDetectFace:(UIImage *)image {
+    NSDictionary *options = @{CIDetectorImageOrientation:[NSNumber numberWithInt:(int)[self imageOrentation:image]]};
+    CIImage *cimage = [CIImage imageWithCGImage:image.CGImage];
+    CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeFace context:nil options:@{CIDetectorAccuracy: CIDetectorAccuracyHigh}];
+    NSArray *features = [detector featuresInImage:cimage options:options];
+    
+    if (features.count > 0) return true;
+    else return false;
+    
+}
+
+-(NSInteger)imageOrentation:(UIImage *)image {
+    if (image.imageOrientation == UIImageOrientationUp) return 1;
+    else if (image.imageOrientation == UIImageOrientationDown) return 3;
+    else if (image.imageOrientation == UIImageOrientationLeft) return 8;
+    else if (image.imageOrientation == UIImageOrientationRight) return 6;
+    else if (image.imageOrientation == UIImageOrientationUpMirrored) return 2;
+    else if (image.imageOrientation == UIImageOrientationDownMirrored) return 4;
+    else if (image.imageOrientation == UIImageOrientationLeftMirrored) return 5;
+    else return 7;
+
 }
 
 
