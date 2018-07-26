@@ -31,9 +31,14 @@ Pod::Spec.new do |s|
 
   s.ios.deployment_target = '8.0'
 
-  s.source_files = 'OOvatar*.{h,m}'
-  s.public_header_files = 'OOvatar*.h'
-  
+  s.source_files = 'OOvatar.{h,m}'
+  s.source_files = 'OOvatarIcon.{h,m}'
+  s.source_files = 'OOvatarPreview.{h,m}'
+	  
+  s.public_header_files = 'OOvatar.h'
+  s.public_header_files = 'OOvatarIcon.h'
+  s.public_header_files = 'OOvatarPreview.h'
+	  
   s.frameworks = 'UIKit', 'Photos', 'AVFoundation', 'SafariServices', 'ContactsUI'
   
   end
