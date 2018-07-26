@@ -2,7 +2,7 @@
 <strong>Ovatar</strong> is the quickest and most powerful way to enable avatar support in any client. This documentation focuses on the iOS framework build in Objective C, but can be used in both Objective C and Swift projects. In this documentation, we will show you how to get avatar support in your app in minutes with our super simplified classes that require only a small amount of code. But we also will go into more detail as this framework can give you full control of all Ovatar features. Let's begin…<p>
 
 <h3>Registering</h3>
-To begin using Ovatar in any project you must first obtain a <strong>app key</strong>. <strike>This can be done by first signing up to Ovatar at <a href='https://ovatar.io'>ovatar.io</a> then creating an app.</strike>Right now we are still building the dashboard so please contact us directly for an app key. <p>
+To begin using Ovatar in any project you must first obtain a <strong>app key</strong>. This can be done by first signing up to Ovatar at <a href='https://ovatar.io/dashboard'>ovatar.io</a> then creating an app.<p>
     
 <strong>NOTE</strong> Ovatar is still in BETA so please let us know of any issues, also be aware that some aspects of the framework may change without notice. For this, we suggest using coccopods version control. 
 
