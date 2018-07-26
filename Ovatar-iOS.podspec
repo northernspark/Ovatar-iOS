@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Ovatar-iOS'
-  s.version          = '1.0.2'
+  s.version          = '1.1'
   s.summary          = 'Ovatar is the quickest and most powerful way to enable avatar support in any app!'
 
 # This description is used to generate tags and improve search results.
