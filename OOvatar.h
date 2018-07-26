@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <ContactsUI/ContactsUI.h>
 
 #define OVATAR_HOST @"https://ovatar.io/api/"
 #define OVATAR_REGEX_PHONE @"(\\+)[0-9\\+\\-]{6,19}"
@@ -35,7 +36,11 @@ typedef NS_ENUM(NSInteger, OOutputType) {
     
 };
 
-
+typedef NS_ENUM(NSInteger, OEndpoint) {
+    OEndpointUser,
+    OEndpointCelebrity,
+    
+};
 
 @property (weak, nonatomic) id <OOvatarDelegate> odelegate;
 @property (nonatomic ,assign) OImageSize size;
@@ -51,6 +56,7 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 
 -(void)setEmail:(NSString *)email;
 -(void)setPhoneNumber:(NSString *)phone;
+-(void)setName:(NSString *)name;
 -(void)setKey:(NSString *)key;
 -(void)setDebugging:(BOOL)enabled;
 -(void)setPrivateArchive:(BOOL)enabled;
@@ -65,14 +71,15 @@ typedef NS_ENUM(NSInteger, OOutputType) {
 
 -(void)returnOvatarIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion;
+-(void)returnOvatarCelebrityIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion;
 -(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion;
 
--(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user;
+-(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user background:(BOOL)background;
 
 -(void)imageCacheDestroy;
 -(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer;
--(UIImage *)imageFromCache:(NSString *)identifyer;
--(BOOL)imageDetectFace:(UIImage *)image;
+-(UIImage *)imageFromCache:(NSString *)identifyer expired:(BOOL)show;
+-(int)imageDetectFace:(UIImage *)image;
 
 @end
 

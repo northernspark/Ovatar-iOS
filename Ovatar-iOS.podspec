@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Ovatar-iOS'
-  s.version          = '1.0'
+  s.version          = '1.0.2'
   s.summary          = 'Ovatar is the quickest and most powerful way to enable avatar support in any app!'
 
 # This description is used to generate tags and improve search results.
@@ -26,19 +26,14 @@ Pod::Spec.new do |s|
   # s.screenshots    = 'www.example.com/screenshots_1'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'NorthernSpark' => 'joe@northernspark.co.uk' }
-  s.source           = { :git => 'https://github.com/NorthernSparkUK/Ovatar-iOS.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/northernspark/Ovatar-iOS.git', :tag => s.version.to_s }
   s.social_media_url = 'https://twitter.com/@NorthernSparkUK'
 
   s.ios.deployment_target = '8.0'
 
-  s.source_files = 'OOvatar.{h,m}'
-  s.source_files = 'OOvatarIcon.{h,m}'
-  s.source_files = 'OOvatarPreview.{h,m}'
-	  
-  s.public_header_files = 'OOvatar.h'
-  s.public_header_files = 'OOvatarIcon.h'
-  s.public_header_files = 'OOvatarPreview.h'
-	  
-  s.frameworks = 'UIKit', 'Photos', 'AVFoundation', 'SafariServices'
+  s.source_files = 'OOvatar*.{h,m}'
+  s.public_header_files = 'OOvatar*.h'
+  
+  s.frameworks = 'UIKit', 'Photos', 'AVFoundation', 'SafariServices', 'ContactsUI'
   
   end

@@ -24,7 +24,7 @@
     self.preview = false;
     self.animated = true;
     self.presentpicker = true;
-    self.progressloader = true;
+    self.progressloader = false;
     self.contentMode = UIViewContentModeScaleAspectFill;
 
     if (![self.subviews containsObject:self.container]) {
@@ -40,7 +40,8 @@
         loadercontainer.hidden = !self.progressloader;
         loadercontainer.transform = CGAffineTransformMakeScale(1.08, 1.08);
         loadercontainer.alpha = 0.0;
-        [self.container addSubview:loadercontainer];
+        loadercontainer.userInteractionEnabled = false;
+        //[self.container addSubview:loadercontainer];
         
         loader = [CAShapeLayer layer];
         loader.path = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(6.0, 6.0, loadercontainer.bounds.size.width - 24.0, loadercontainer.bounds.size.height - (24.0)) cornerRadius:loadercontainer.bounds.size.width].CGPath;
@@ -49,7 +50,7 @@
         loader.strokeColor = [UIColor whiteColor].CGColor;
         loader.lineWidth = 3;
         loader.lineCap = kCALineCapRound;
-        [loadercontainer.layer addSublayer:loader];
+        //[loadercontainer.layer addSublayer:loader];
         
         gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(imageTappedWithGesture:)];
         gesture.delegate = self;
@@ -62,7 +63,8 @@
     
     if (self.hasaction) {
         if (self.ovatar.ovatarKey != nil && self.ovatar.ovatarKey.length > 0) {
-            if ([self.ovatar imageFromCache:self.ovatar.ovatarKey] == nil) {
+            if ([self.ovatar imageFromCache:self.ovatar.ovatarKey expired:false] == nil) {
+                [self imageSet:[self.ovatar imageFromCache:self.ovatar.ovatarKey expired:true] animated:self.animated];
                 [self.ovatar returnOvatarIconWithKey:self.ovatar.ovatarKey completion:^(NSError *error, id output) {
                     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
                         if (error.code == 200) {
@@ -86,7 +88,7 @@
 
                         }
                         else {
-                            [self imageSet:[self.ovatar imageFromCache:self.ovatar.ovatarKey] animated:self.animated];
+                            [self imageSet:[self.ovatar imageFromCache:self.ovatar.ovatarKey expired:false] animated:self.animated];
                             
                         }
                         
@@ -95,7 +97,7 @@
                 }];
                 
             }
-            else [self imageSet:[self.ovatar imageFromCache:self.ovatar.ovatarKey] animated:self.animated];
+            else [self imageSet:[self.ovatar imageFromCache:self.ovatar.ovatarKey expired:false] animated:self.animated];
             
         }
         else if ((self.ovatar.ovatarEmail != nil && self.ovatar.ovatarEmail.length > 0) || (self.ovatar.ovatarPhoneNumber != nil && self.ovatar.ovatarPhoneNumber.length > 0)) {
@@ -103,7 +105,8 @@
             if (self.ovatar.ovatarEmail != nil) user = self.ovatar.ovatarEmail;
             else user = self.ovatar.ovatarPhoneNumber;
 
-            if ([self.ovatar imageFromCache:user] == nil) {
+            if ([self.ovatar imageFromCache:user expired:false] == nil) {
+                [self imageSet:[self.ovatar imageFromCache:user expired:true] animated:self.animated];
                 [self.ovatar returnOvatarIconWithQuery:user completion:^(NSError *error, id output) {
                     [[NSOperationQueue mainQueue] addOperationWithBlock:^{
                         if (error.code == 200) {
@@ -126,7 +129,7 @@
                             
                         }
                         else {
-                            [self imageSet:[self.ovatar imageFromCache:user] animated:self.animated];
+                            [self imageSet:[self.ovatar imageFromCache:user expired:false] animated:self.animated];
                             
                         }
                         
@@ -135,7 +138,7 @@
                 }];
                 
             }
-            else [self imageSet:[self.ovatar imageFromCache:user] animated:self.animated];
+            else [self imageSet:[self.ovatar imageFromCache:user expired:false] animated:self.animated];
 
         }
         else [self imageSet:self.placeholder animated:self.animated];
@@ -215,10 +218,13 @@
     else {
         if (self.preview) {
             [self.opreview previewPresent:self.container caption:self.previewcaption];
-                        
+            NSLog(@"present preview");
         }
         
     }
+    
+    NSLog(@"present preview: %@" ,self.preview?@"yes":@"no");
+
     
 }
 
@@ -247,8 +253,11 @@
         else output = [info objectForKey:UIImagePickerControllerOriginalImage];
         
         if (self.onlyfaces) {
-            if ([self.ovatar imageDetectFace:output]) {
-                [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:info];
+            if ([self.ovatar imageDetectFace:output] > 0) {
+                NSMutableDictionary *append = [[NSMutableDictionary alloc] initWithDictionary:info];
+                [append setObject:@([self.ovatar imageDetectFace:output]) forKey:@"faces"];
+                
+                [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:append];
                 
             }
             else {
@@ -304,11 +313,12 @@
 
             }
             else {
-                if ([self.ovatar imageFromCache:query]) {
-                    [self imageSet:[self.ovatar imageFromCache:query] animated:self.animated];
+                if ([self.ovatar imageFromCache:query expired:false]) {
+                    [self imageSet:[self.ovatar imageFromCache:query expired:true] animated:self.animated];
 
                 }
                 else {
+                    [self imageSet:[self.ovatar imageFromCache:query expired:true] animated:self.animated];
                     if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:query] || [[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_PHONE] evaluateWithObject:query]) {
                         [self.ovatar returnOvatarIconWithQuery:query completion:^(NSError *error, id output) {
                             if ([output isKindOfClass:[UIImage class]]) {
@@ -325,7 +335,7 @@
                             if ([output isKindOfClass:[UIImage class]]) {
                                 [self imageSet:(UIImage *)output animated:self.animated];
                                 [self.ovatar imageSaveToCache:(UIImage *)output identifyer:query];
-                                
+
                             }
                             
                         }];
@@ -341,6 +351,12 @@
         
     }];
 
+}
+
+-(void)imageDownloadWithQuery:(NSString *)query name:(NSString *)name {
+    [self.ovatar setName:name];
+    [self imageDownloadWithQuery:query];
+    
 }
 
 -(void)imageUpdateWithImage:(NSData *)image info:(NSDictionary *)info {
@@ -367,7 +383,7 @@
         
     }
     
-    [self.ovatar uploadOvatar:image metadata:metadata user:user];
+    [self.ovatar uploadOvatar:image metadata:metadata user:user background:false];
     [self.ovatar imageSaveToCache:[UIImage imageWithData:image] identifyer:user];
     
 }

@@ -31,7 +31,7 @@ static NSString *token;
 }
 
 -(void)returnOvatarAppInformation:(void (^)(NSDictionary *app, NSError *error))completion {
-    NSString *url = [NSString stringWithFormat:@"%@app/info.php" ,OVATAR_HOST];
+    NSString *url = [NSString stringWithFormat:@"%@app/info" ,OVATAR_HOST];
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:40];
     [request addValue:token forHTTPHeaderField:@"oappkey"];
     [request setHTTPMethod:@"GET"];
@@ -59,6 +59,20 @@ static NSString *token;
     
 }
 
+-(void)returnOvatarCelebrityIconWithQuery:(NSString *)query completion:(void (^)(NSError *error, id output))completion {
+    NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
+    [params setObject:query forKey:@"query"];
+    
+    if ([query length] > 2) {
+        [self requestOvatarImageWithParameters:params endpoint:OEndpointCelebrity completion:^(NSError *error, id output) {
+            completion(error, output);
+            
+        }];
+        
+    }
+    
+}
+
 -(void)returnOvatarIconWithKey:(NSString *)key completion:(void (^)(NSError *error, id output))completion {
     NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
     [params setObject:key forKey:@"id"];
@@ -71,7 +85,7 @@ static NSString *token;
     }
     
     if (key.length > 2) {
-        [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
+        [self requestOvatarImageWithParameters:params endpoint:OEndpointUser completion:^(NSError *error, id output) {
             completion(error, output);
 
         }];
@@ -95,8 +109,11 @@ static NSString *token;
     }
     
     if (query.length > 2) {
-        [self requestOvatarImageWithParameters:params completion:^(NSError *error, id output) {
-            completion(error, output);
+        [self requestOvatarImageWithParameters:params endpoint:OEndpointUser completion:^(NSError *error, id output) {
+            [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                completion(error, output);
+                
+            }];
             
         }];
         
@@ -104,13 +121,13 @@ static NSString *token;
     
     self.oquery = query;
 
-
 }
 
--(void)requestOvatarImageWithParameters:(NSDictionary *)params completion:(void (^)(NSError *error, id output))completion {
+-(void)requestOvatarImageWithParameters:(NSDictionary *)params endpoint:(OEndpoint)endpoint completion:(void (^)(NSError *error, id output))completion {
     NSMutableString *buildendpoint = [[NSMutableString alloc] init];
     [buildendpoint appendString:OVATAR_HOST];
-    [buildendpoint appendString:@"ovatar.php"];
+    if (endpoint == OEndpointUser) [buildendpoint appendString:@"ovatar"];
+    else if (endpoint == OEndpointUser) [buildendpoint appendString:@"celebrity"];
     [buildendpoint appendString:@"?"];
     [buildendpoint appendString:[NSString stringWithFormat:@"fallback=%@&" ,[[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_gravatar"] boolValue]?@"true":@"false"]];
 
@@ -146,10 +163,48 @@ static NSString *token;
 
                 }
                 else if ([UIImage imageWithData:data] != nil) {
-                    UIImage *output = [UIImage imageWithData:data];
                     NSError *err = [NSError errorWithDomain:@"" code:(int)status.statusCode userInfo:nil];
-                    
-                    completion(err ,output);
+                    if (status.statusCode == 404) {
+                        if (endpoint == OEndpointUser) {
+                            if ([self contactsAuthorized] && [params objectForKey:@"query"] != nil) {
+                                [self contactFromQuery:[params objectForKey:@"query"] completion:^(NSDictionary *user) {
+                                    if ([user objectForKey:@"thumbnail"] != nil) {
+                                        NSMutableDictionary *metadata = [[NSMutableDictionary alloc] init];
+                                        NSMutableString *userdata = [[NSMutableString alloc] init];
+                                        if ([user objectForKey:@"email"]) {
+                                            [userdata appendString:[user objectForKey:@"email"]];
+                                            
+                                        }
+                                        
+                                        if ([userdata length] > 0) {
+                                            [userdata appendString:@"|"];
+
+                                        }
+                                        
+                                        if ([user objectForKey:@"phone"]) {
+                                            [userdata appendString:[user objectForKey:@"phone"]];
+                                            
+                                        }
+                                  
+                                        [self uploadOvatar:[user objectForKey:@"thumbnail"] metadata:metadata user:userdata background:true];
+                                        
+                                    }
+                                    
+                                }];
+                                
+                            }
+                            else completion(err ,nil);
+                            
+                        }
+                        else completion(err ,nil);
+                        
+                    }
+                    else {
+                        UIImage *output = [UIImage imageWithData:data];
+                        
+                        completion(err ,output);
+
+                    }
                     
                 }
                 
@@ -171,13 +226,18 @@ static NSString *token;
     
 }
 
--(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user {
-    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
-    queue.qualityOfService = NSQualityOfServiceUtility;
+-(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user background:(BOOL)background {
+    NSOperationQueue *queue;
+    if (background) {
+        queue = [[NSOperationQueue alloc] init];
+        queue.qualityOfService = NSQualityOfServiceBackground;
+
+    }
+    else queue = [NSOperationQueue mainQueue];
     
     NSMutableString *buildendpoint = [[NSMutableString alloc] init];
     [buildendpoint appendString:OVATAR_HOST];
-    [buildendpoint appendString:@"upload.php"];
+    [buildendpoint appendString:@"upload"];
     
     NSMutableString *formatdata = [[NSMutableString alloc] init];
     [formatdata appendString:[image base64EncodedStringWithOptions:0]];
@@ -185,8 +245,9 @@ static NSString *token;
     NSMutableDictionary *endpointparams = [[NSMutableDictionary alloc] init];
     [endpointparams setValue:formatdata forKey:@"ovatar"];
     [endpointparams setValue:@([[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_private_archive"] boolValue]) forKey:@"private"];
+    [endpointparams setValue:[[NSUserDefaults standardUserDefaults] objectForKey:@"ovatar_name"] forKey:@"fullname"];
     [endpointparams setValue:user forKey:@"user"];
-    
+
     if (metadata != nil) [endpointparams addEntriesFromDictionary:metadata];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:buildendpoint] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:40];
@@ -311,6 +372,18 @@ static NSString *token;
 
 }
 
+-(void)setName:(NSString *)name {
+    if ([[name componentsSeparatedByString:@" "] count] > 1) {
+        [[NSUserDefaults standardUserDefaults] setObject:name.capitalizedString forKey:@"ovatar_name"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR NAME SAVED: %@" ,name);
+        
+    }
+    else if ([self variable:@"debugging"]) NSLog(@"\n\nOVATAR NAME INVALID");
+    
+}
+
 -(void)setEmail:(NSString *)email {
     if ([[NSPredicate predicateWithFormat:@"SELF MATCHES %@", OVATAR_REGEX_EMAIL] evaluateWithObject:email]) {
         [[NSUserDefaults standardUserDefaults] setObject:email forKey:@"ovatar_email"];
@@ -422,7 +495,6 @@ static NSString *token;
         if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
             [cache setObject:UIImagePNGRepresentation(image) forKey:[NSString stringWithFormat:@"ovatar_data_%@_size%d" ,identifyer, (int)self.size]];
             [cache setObject:[NSDate dateWithTimeIntervalSinceNow:(int)[self variable:@"expiry"]] forKey:[NSString stringWithFormat:@"ovatar_expiry_%@_size%d" ,identifyer ,(int)self.size]];
-            
         }
         
     }
@@ -439,14 +511,18 @@ static NSString *token;
     
 }
 
--(UIImage *)imageFromCache:(NSString *)identifyer {
+-(UIImage *)imageFromCache:(NSString *)identifyer expired:(BOOL)show {
     if ([identifyer length] > 2 && ![identifyer isEqual:[NSNull null]]) {
         NSUserDefaults *cache = [NSUserDefaults standardUserDefaults];
-        NSDate *expiry = [cache objectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@" ,identifyer]];
-        NSData *output = [cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]];
+        NSDate *expiry = [cache objectForKey:[NSString stringWithFormat:@"ovatar_expiry_%@_size%d" ,identifyer ,(int)self.size]];
+        NSData *output = [cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@_size%d" ,identifyer ,(int)self.size]];
         
-        if ([[NSDate date] compare:expiry] == NSOrderedDescending || expiry == nil) return nil;
-        else if ([cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@" ,identifyer]] == nil) return nil;
+        if ([[NSDate date] compare:expiry] == NSOrderedDescending || expiry == nil) {
+            if (show) return [UIImage imageWithData:output];
+            else return nil;
+            
+        }
+        else if ([cache objectForKey:[NSString stringWithFormat:@"ovatar_data_%@_size%d" ,identifyer  ,(int)self.size]] == nil) return nil;
         else return [UIImage imageWithData:output];
         
     }
@@ -454,14 +530,13 @@ static NSString *token;
     
 }
 
--(BOOL)imageDetectFace:(UIImage *)image {
+-(int)imageDetectFace:(UIImage *)image {
     NSDictionary *options = @{CIDetectorImageOrientation:[NSNumber numberWithInt:(int)[self imageOrentation:image]]};
     CIImage *cimage = [CIImage imageWithCGImage:image.CGImage];
     CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeFace context:nil options:@{CIDetectorAccuracy: CIDetectorAccuracyHigh}];
     NSArray *features = [detector featuresInImage:cimage options:options];
     
-    if (features.count > 0) return true;
-    else return false;
+    return features.count > 0;
     
 }
 
@@ -477,5 +552,76 @@ static NSString *token;
 
 }
 
+-(BOOL)contactsAuthorized {
+    if ([CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts] == CNAuthorizationStatusAuthorized) {
+        return true;
+        
+    }
+    else return false;
+    
+}
+
+-(NSArray *)contactRequestKeys {
+    return @[[CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
+             CNContactEmailAddressesKey,
+             CNContactPhoneNumbersKey,
+             CNContactThumbnailImageDataKey,
+             CNContactOrganizationNameKey,
+             CNContactBirthdayKey];
+    
+}
+
+-(void)contactFromQuery:(NSString *)query completion:(void (^)(NSDictionary *user))completion {
+    NSMutableArray *contacts = [[NSMutableArray alloc] init];
+    CNContactStore *store = [[CNContactStore alloc] init];
+    CNContactFetchRequest *fetch = [[CNContactFetchRequest alloc] initWithKeysToFetch:[self contactRequestKeys]];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        [store containersMatchingPredicate:[CNContainer predicateForContainersWithIdentifiers:@[store.defaultContainerIdentifier]] error:nil];
+        [store enumerateContactsWithFetchRequest:fetch error:nil usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
+            [contacts addObject:@{@"id":contact.identifier,
+                                  @"email":[self contactsFormatEmail:contact],
+                                  @"phone":[self contactsFormatPhone:contact],
+                                  @"thumbnail":contact.thumbnailImageData==nil?[NSData data]:contact.thumbnailImageData}];
+            
+            
+
+        }];
+        
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"email == %@ || phone == %@" ,query, query];
+        NSDictionary *output = [[contacts filteredArrayUsingPredicate:predicate] lastObject];
+        
+        completion(output);
+        
+    });
+    
+}
+                   
+-(NSArray *)contactsFormatEmail:(CNContact *)contact {
+   NSMutableArray *emails = [[NSMutableArray alloc] init];
+   for (CNLabeledValue *email in contact.emailAddresses) {
+       NSString *formatted = [email valueForKey:@"value"];
+       
+       [emails addObject:formatted];
+       
+   }
+   
+   return emails;
+   
+}
+
+-(NSArray *)contactsFormatPhone:(CNContact *)contact {
+   NSMutableArray *phones = [[NSMutableArray alloc] init];
+   for (CNLabeledValue *phone in contact.phoneNumbers) {
+       CNPhoneNumber *digits = phone.value;
+       NSCharacterSet *characters = [[NSCharacterSet characterSetWithCharactersInString:@"+0123456789"] invertedSet];
+       NSString *number = [[digits.stringValue componentsSeparatedByCharactersInSet:characters] componentsJoinedByString:@""];
+       
+       [phones addObject:number];
+       
+   }
+   
+   return phones;
+   
+}
 
 @end

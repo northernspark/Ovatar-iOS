@@ -13,7 +13,7 @@ by adding adding the project though <strong>Coccopods</strong> (Recommended)<p> 
 
 <h3>Getting Started</h3>
 <h4>Swift</h4>
-
+<code>import OOvatar</code>	
 <pre>
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey : Any]? = nil) -> Bool {
     OOvatar.sharedInstance(withAppKey: "app_key")
@@ -21,8 +21,8 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
     return true
 }
 </pre><p>
-
 <h4>Objective C</h4>
+<code>#import "OOvatar.h"</code>	
 <pre>
 -(BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 	[OOvatar sharedInstanceWithAppKey:@"app_key"];
@@ -88,6 +88,14 @@ Ovatar allows you to query of course images uploaded using your app_key can be c
 	<h4>Objective C</h4>
 	<code>[self.ovatar imageDownloadWithQuery:@"user@email.com"];</code><p>
 
+<strong>NOTE</strong> In addition to passing a query you can also add a 'name'. This will not query user by name but allow you to store the users name for reference in both the <a href="http://ovatar.io/dashboard/" target="_blank">Ovatar Dashboard</a> and for later reference when calling the an image.<p><p>
+	
+<h4>Swift</h4>
+<code>ovatar?.imageDownload(withQuery: "user@email.com", name: "Rick Sanchez")</code><p>	
+<h4>Objective C</h4>
+<code>[self.ovatar imageDownloadWithQuery:@"user@email.com" name:@"Rick Sanchez"];</code><p>
+
+<p><p>
 <strong>NOTE</strong> If you want to query both a key and a email address as fall back simply add this method multiple times.<p>
 	<h4>Swift</h4>
 	<pre>
@@ -215,6 +223,11 @@ func ovatarIconUploading(withProgress progress: Float) {
 
 <h3>Debugging & Options</h3>
 The following can be set from anywhere in your app but we recommend setting the following variables in the <code>didFinishLaunchingWithOptions</code> method in your <codeAppDelegate.m</code><p><p>
+<h4>Name</h4> store the users fullname when uploading an ovatar
+<h4>Swift</h4>
+<p><code>OOvatar.sharedInstance().setName("Steve Jobs")</code><p>
+<h4>Objective C</h4>
+<p><code>[[OOvatar sharedInstance] setName:@"Steve Jobs"];</code><p>
 <h4>Debugging</h4> to enable console debugging simply set 
 <h4>Swift</h4>
 <p><code>OOvatar.sharedInstance().setDebugging(true)</code><p>
