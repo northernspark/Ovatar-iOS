@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Ovatar-iOS'
-  s.version          = '1.1'
+  s.version          = '1.2'
   s.summary          = 'Ovatar is the quickest and most powerful way to enable avatar support in any app!'
 
 # This description is used to generate tags and improve search results.
@@ -25,9 +25,9 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://ovatar.io'
   # s.screenshots    = 'www.example.com/screenshots_1'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
-  s.author           = { 'NorthernSpark' => 'joe@northernspark.co.uk' }
+  s.author           = { 'Ovatar' => 'joe@ovatar.io' }
   s.source           = { :git => 'https://github.com/northernspark/Ovatar-iOS.git', :tag => s.version.to_s }
-  s.social_media_url = 'https://twitter.com/@NorthernSparkUK'
+  s.social_media_url = 'https://instagram.com/ovatar.io'
 
   s.ios.deployment_target = '8.0'
 

@@ -2,7 +2,7 @@
 <strong>Ovatar</strong> is the quickest and most powerful way to enable avatar support in any client. This documentation focuses on the iOS framework build in Objective C, but can be used in both Objective C and Swift projects. In this documentation, we will show you how to get avatar support in your app in minutes with our super simplified classes that require only a small amount of code. But we also will go into more detail as this framework can give you full control of all Ovatar features. Let's begin…<p>
 
 <h3>Registering</h3>
-To begin using Ovatar in any project you must first obtain a <strong>app key</strong>. This can be done by first signing up to Ovatar at <a href='https://ovatar.io/dashboard'>ovatar.io</a> then creating an app.<p>
+To begin using Ovatar in any project you must first obtain a <strong>app key</strong>. This can be done by first signing up to Ovatar at <a href='https://ovatar.io/dashboard/authenticate.php?type=login'>ovatar.io</a> then creating an app.<p>
     
 <strong>NOTE</strong> Ovatar is still in BETA so please let us know of any issues, also be aware that some aspects of the framework may change without notice. For this, we suggest using coccopods version control. 
 
@@ -13,7 +13,7 @@ by adding adding the project though <strong>Coccopods</strong> (Recommended)<p> 
 
 <h3>Getting Started</h3>
 <h4>Swift</h4>
-<code>import OOvatar</code>	
+<code>import OOvatar</code><p>
 <pre>
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey : Any]? = nil) -> Bool {
     OOvatar.sharedInstance(withAppKey: "app_key")
@@ -22,7 +22,7 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 }
 </pre><p>
 <h4>Objective C</h4>
-<code>#import "OOvatar.h"</code>	
+<code>#import "OOvatar.h"</code><p>
 <pre>
 -(BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 	[OOvatar sharedInstanceWithAppKey:@"app_key"];
@@ -86,12 +86,15 @@ Ovatar allows you to query of course images uploaded using your app_key can be c
 	<h4>Swift</h4>
 	<code>ovatar?.imageDownload(withQuery: "user@email.com")</code><p>	
 	<h4>Objective C</h4>
-	<code>[self.ovatar imageDownloadWithQuery:@"user@email.com"];</code><p>
+	<code>[self.ovatar setOvatarImage:@"user@email.com" phonenumber:@"+4477402847283" fullname:@"Tom Hanks" key:@"[upload_key]" originalImage:@"http://mywebsite.com/user/useravatar.jpeg"];
+	</code><p>
 
 <strong>NOTE</strong> In addition to passing a query you can also add a 'name'. This will not query user by name but allow you to store the users name for reference in both the <a href="http://ovatar.io/dashboard/" target="_blank">Ovatar Dashboard</a> and for later reference when calling the an image.<p><p>
 	
+<strong>NOTE</strong> passing an original image URL to <code>originalImage</code> will first migrate this image to ovatar. If you do don't want to migrate images please pass <code>nil</code><p><p>
+	
 <h4>Swift</h4>
-<code>ovatar?.imageDownload(withQuery: "user@email.com", name: "Rick Sanchez")</code><p>	
+<code>ovatar?.imageDownload(withQuery:"user@email.com", name:"Rick Sanchez")</code><p>	
 <h4>Objective C</h4>
 <code>[self.ovatar imageDownloadWithQuery:@"user@email.com" name:@"Rick Sanchez"];</code><p>
 
@@ -105,7 +108,7 @@ Ovatar allows you to query of course images uploaded using your app_key can be c
 	</pre>
 	<p>
 	<h4>Objective C</h4>
-	<pre>
+	<pre>		
 		[self.ovatar imageDownloadWithQuery:@"user@email.com"];  //email address query
 		[self.ovatar imageDownloadWithQuery:@"+44000000000000"];  //uk phone number query
 		[self.ovatar imageDownloadWithQuery:@"my_uploaded_ovatar_key"]; //query by key
