@@ -8,14 +8,14 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <ContactsUI/ContactsUI.h>
+#import <Photos/Photos.h>
 
 #define OVATAR_HOST @"https://ovatar.io/api/"
 #define OVATAR_REGEX_PHONE @"(\\+)[0-9\\+\\-]{6,19}"
 #define OVATAR_REGEX_EMAIL @"[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}"
 
 @protocol OOvatarDelegate;
-@interface OOvatar : NSObject <NSURLSessionTaskDelegate>
+@interface OOvatar : NSObject <NSURLSessionDataDelegate, NSURLSessionDelegate>
 typedef NS_ENUM(NSInteger, OImageSize) {
     OImageSizeLarge,
     OImageSizeMedium,
@@ -54,6 +54,7 @@ typedef NS_ENUM(NSInteger, OEndpoint) {
 +(void)sharedInstanceWithAppKey:(NSString *)appKey;
 //Must be added to the app delegate with application key which can be found at http://ovatar.io
 
+-(void)setOvatarImage:(NSString *)email phonenumber:(NSString *)phone fullname:(NSString *)name key:(NSString *)key originalImage:(NSURL *)image;
 -(void)setEmail:(NSString *)email;
 -(void)setPhoneNumber:(NSString *)phone;
 -(void)setName:(NSString *)name;
@@ -66,6 +67,7 @@ typedef NS_ENUM(NSInteger, OEndpoint) {
 -(NSString *)ovatarEmail;
 -(NSString *)ovatarPhoneNumber;
 -(NSString *)ovatarKey;
+-(NSURL *)ovatarMigrationURL;
 
 -(NSDictionary *)ovatarAppInformation;
 
@@ -76,10 +78,11 @@ typedef NS_ENUM(NSInteger, OEndpoint) {
 
 -(void)uploadOvatar:(NSData *)image metadata:(NSDictionary *)metadata user:(NSString *)user background:(BOOL)background;
 
--(void)imageCacheDestroy;
+-(void)imageCacheDestroy:(NSString *)item;
 -(void)imageSaveToCache:(UIImage *)image identifyer:(NSString *)identifyer;
 -(UIImage *)imageFromCache:(NSString *)identifyer expired:(BOOL)show;
 -(int)imageDetectFace:(UIImage *)image;
+-(NSArray *)imageTypes:(PHAsset *)asset image:(UIImage *)image;
 
 @end
 

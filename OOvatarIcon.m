@@ -218,13 +218,10 @@
     else {
         if (self.preview) {
             [self.opreview previewPresent:self.container caption:self.previewcaption];
-            NSLog(@"present preview");
+
         }
         
     }
-    
-    NSLog(@"present preview: %@" ,self.preview?@"yes":@"no");
-
     
 }
 
@@ -257,7 +254,7 @@
                 NSMutableDictionary *append = [[NSMutableDictionary alloc] initWithDictionary:info];
                 [append setObject:@([self.ovatar imageDetectFace:output]) forKey:@"faces"];
                 
-                [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:append];
+                [self imageUpdateWithImage:output info:append];
                 
             }
             else {
@@ -269,7 +266,7 @@
                 
             }
         }
-        else [self imageUpdateWithImage:UIImageJPEGRepresentation(output, 0.8) info:info];
+        else [self imageUpdateWithImage:output info:info];
         
     }];
     
@@ -359,32 +356,25 @@
     
 }
 
--(void)imageUpdateWithImage:(NSData *)image info:(NSDictionary *)info {
+-(void)imageUpdateWithImage:(UIImage *)image info:(NSDictionary *)info {
     NSURL *url = [info objectForKey:UIImagePickerControllerReferenceURL];
     PHFetchResult *fetchResult = [PHAsset fetchAssetsWithALAssetURLs:@[url] options:nil];
     PHAsset *asset = fetchResult.firstObject;
-    
-    NSString *type;
-    if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoPanorama) type = @"panorama";
-    else if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoScreenshot) type = @"screencapture";
-    else if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) type = @"livephoto";
-    else type = @"livephoto";
-    
+    NSData *imagedata = UIImageJPEGRepresentation(image, 0.8);
+
     NSMutableDictionary *metadata = [[NSMutableDictionary alloc] init];
     [metadata setObject:@((float)asset.location.coordinate.latitude) forKey:@"latitude"];
     [metadata setObject:@((float)asset.location.coordinate.longitude) forKey:@"longitude"];
-    [metadata setObject:type forKey:@"type"];
+    [metadata setObject:[[self.ovatar imageTypes:asset image:image] componentsJoinedByString:@","] forKey:@"type"];
 
-    NSString *user;
-    if (self.ovatar.ovatarEmail != nil && self.ovatar.ovatarPhoneNumber == nil) user = self.ovatar.ovatarEmail;
-    else if (self.ovatar.ovatarEmail == nil && self.ovatar.ovatarPhoneNumber != nil) user = self.ovatar.ovatarPhoneNumber;
-    else if (self.ovatar.ovatarEmail != nil && self.ovatar.ovatarPhoneNumber != nil) {
-        user = [NSString stringWithFormat:@"%@|%@" ,self.ovatar.ovatarEmail, self.ovatar.ovatarPhoneNumber];
-        
-    }
+    NSMutableArray *user = [[NSMutableArray alloc] init];
+    if (self.ovatar.ovatarEmail != nil) [user addObject:self.ovatar.ovatarEmail];
+    if (self.ovatar.ovatarPhoneNumber != nil) [user addObject:self.ovatar.ovatarPhoneNumber];
     
-    [self.ovatar uploadOvatar:image metadata:metadata user:user background:false];
-    [self.ovatar imageSaveToCache:[UIImage imageWithData:image] identifyer:user];
+    NSString *userdata = [user componentsJoinedByString:@"|"];
+    
+    [self.ovatar uploadOvatar:imagedata metadata:metadata user:userdata background:false];
+    [self.ovatar imageSaveToCache:[UIImage imageWithData:imagedata] identifyer:userdata];
     
 }
 
@@ -433,8 +423,11 @@
 }
 
 -(void)ovatarIconWasUpdatedSucsessfully:(NSDictionary *)output {
-    [self.ovatar imageCacheDestroy];
-    [self setNeedsDisplay];
+    if ([output objectForKey:@"id"] != nil) {
+        [self.ovatar imageCacheDestroy:[output objectForKey:@"id"]];
+        [self imageDownloadWithQuery:[output objectForKey:@"id"]];
+        
+    }
     
     if ([self.oicondelegate respondsToSelector:@selector(ovatarIconWasUpdatedSucsessfully:)]) {
         [self.oicondelegate ovatarIconWasUpdatedSucsessfully:output];

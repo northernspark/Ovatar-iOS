@@ -65,7 +65,7 @@
 -(void)imageDownloadWithQuery:(NSString *)query name:(NSString *)name;
 //Set an image in the Ovatar Icon but also pass the users name
 
--(void)imageUpdateWithImage:(NSData *)image info:(NSDictionary *)info;
+-(void)imageUpdateWithImage:(UIImage *)image info:(NSDictionary *)info;
 //Upload an image directly to the server from a NSData object manually for full control. First, you must set at email address or phone number in Ovatar class. Use the delegate methods to handle progress and errors and set the uploaded image manually.
 
 @end
